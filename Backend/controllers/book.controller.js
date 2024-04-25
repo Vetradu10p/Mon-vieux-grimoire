@@ -92,23 +92,31 @@ const deleteBookImg = async (book) => {
     });
 }
 
+
 exports.updateBook = async (req, res, next) => {
     try{
         const nextYear = new Date().getFullYear()+1;
         const bookToUpdate = await Book.findOne({_id: req.params.id});
         let jsonBookForUpdate = req.body;
-        if(req.file != undefined) {
-            jsonBookForUpdate = JSON.parse(req.body.book);
-            await deleteBookImg(bookToUpdate);
-            jsonBookForUpdate.imageUrl = `${req.protocol}://${req.get('host')}/images/${req.file.filename}`;
+
+        if(req.auth.userId !== bookToUpdate.userId) {
+            return res.status(403).json({message: "Forbidden"})
         }
+     
         if (jsonBookForUpdate.title.length >= 100 || jsonBookForUpdate.author.length >= 50 || jsonBookForUpdate.genre.length >= 50){
             return res.status(400).json({message: "Texte trop long. Veuillez raccourcir"})
         }
         if (jsonBookForUpdate.year > nextYear){
             return res.status(400).json({message: "Veuillez renseigner une annee a 4 chiffres"})
         }
-        jsonBookForUpdate.userId = req.auth.userId;
+
+        if(req.file != undefined) {
+            jsonBookForUpdate = JSON.parse(req.body.book);
+            await deleteBookImg(bookToUpdate);
+            jsonBookForUpdate.imageUrl = `${req.protocol}://${req.get('host')}/images/${req.file.filename}`;
+        }
+
+        // jsonBookForUpdate.userId = req.auth.userId;
         await Book.updateOne({_id: req.params.id}, {...jsonBookForUpdate, _id:req.params.id});
         return res.status(200).json({message: 'livre modifie avec succes'});
     }
@@ -120,6 +128,9 @@ exports.updateBook = async (req, res, next) => {
 exports.deleteBook = async (req, res, next) => {
     try {
         const bookToDelete = await Book.findOne({_id: req.params.id});
+        if(req.auth.userId !== bookToUpdate.userId) {
+            return res.status(403).json({message: "Forbidden"})
+        }
         await deleteBookImg(bookToDelete);
         await Book.deleteOne({_id: req.params.id});
         return res.status(204).json({message : 'livre supprime avec succes'});
@@ -128,3 +139,4 @@ exports.deleteBook = async (req, res, next) => {
         return res.status(404).json(error);
     }
 }
+
